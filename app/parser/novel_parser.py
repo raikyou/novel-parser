@@ -14,29 +14,29 @@ class NovelParser:
     # Regular expression patterns for chapter detection
     # Advanced patterns for matching various chapter formats in Chinese novels
     CHAPTER_PATTERNS = [
-        # 第X章/节 - 最常见的章节格式
-        r'^.{0,2}第[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+[章节回卷].{0,10}$',
+        # 第X章/节/回/卷 Title- 最常见的章节格式
+        r'^.{0,4}第[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+[章节回卷].{0,30}$',
 
         # 序章、终章、尾声等特殊章节
-        r'^.{0,2}[序终尾楔引前后][章言声子记].{0,10}$',
+        r'^.{0,4}[序终尾楔引前后][章言声子记].{0,30}$',
 
         # 正文、番外等特殊章节
-        r'^.{0,2}[正番内文][文外容章].{0,10}$',
+        r'^.{0,4}[正番内文][文外容章].{0,30}$',
 
         # 上部、中篇、下卷等特殊章节
-        r'^.{0,2}[上中下外][部篇卷].{0,10}$',
+        r'^.{0,4}[上中下外][部篇卷].{0,30}$',
 
-        # 数字加点/顶格式 1.目录
-        r'^.{0,2}\d+[、\.].{0,10}$',
+        # 1.目录 数字加点
+        r'^.{0,4}\d+[、\.].{0,30}$',
 
-        # 英文章节
-        r'^.{0,2}[Cc][Hh][Aa][Pp][Tt][Ee][Rr]\d+.{0,10}$',
+        # Chapter1 title 英文章节
+        r'^.{0,4}[Cc][Hh][Aa][Pp][Tt][Ee][Rr]\d+.{0,30}$',
 
         # 特殊标记章节
-        r'^.{0,2}[☆★✦✧].{0,10}$',
+        r'^.{0,4}[☆★✦✧].{0,30}$',
 
         # 分隔线章节
-        r'^.{0,2}={2,4}.{0,10}$'
+        r'^.{0,4}={2,4}.{0,30}$'
     ]
 
     def __init__(self):
@@ -68,14 +68,25 @@ class NovelParser:
             with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
                 content = f.read()
 
-            # Extract novel title (using filename without extension)
+            # Extract novel title and author from filename
             novel_title = file_path.stem
+            author = None
+
+            # Check if filename matches the pattern "xxx 作者：xx"
+            author_pattern = re.compile(r'(.+)\s*作者[：:](\s*)(.+)')
+            match = author_pattern.match(novel_title)
+
+            if match:
+                novel_title = match.group(1).strip()
+                author = match.group(3).strip()
+                logger.info(f"Extracted title: {novel_title}, author: {author}")
 
             chapters = self._extract_chapters(content)
 
             # Create novel metadata
             novel_data = {
                 'title': novel_title,
+                'author': author,
                 'file_path': str(file_path),
                 'file_size': file_size,
                 'chapter_count': len(chapters),

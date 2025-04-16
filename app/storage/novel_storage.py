@@ -1,9 +1,5 @@
-import os
-import json
 import logging
-from pathlib import Path
 import sqlite3
-import re
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -33,6 +29,7 @@ class NovelStorage:
         CREATE TABLE IF NOT EXISTS novels (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             title TEXT NOT NULL,
+            author TEXT,
             file_path TEXT UNIQUE NOT NULL,
             file_size INTEGER NOT NULL,
             chapter_count INTEGER NOT NULL,
@@ -91,9 +88,9 @@ class NovelStorage:
                 novel_id = existing_novel['id']
                 cursor.execute('''
                 UPDATE novels
-                SET title = ?, file_size = ?, chapter_count = ?, updated_at = CURRENT_TIMESTAMP
+                SET title = ?, author = ?, file_size = ?, chapter_count = ?, updated_at = CURRENT_TIMESTAMP
                 WHERE id = ?
-                ''', (novel_data['title'], novel_data['file_size'], novel_data['chapter_count'], novel_id))
+                ''', (novel_data['title'], novel_data.get('author'), novel_data['file_size'], novel_data['chapter_count'], novel_id))
 
                 # Delete existing chapters
                 cursor.execute("DELETE FROM chapters WHERE novel_id = ?", (novel_id,))
@@ -103,9 +100,9 @@ class NovelStorage:
             else:
                 # Insert new novel
                 cursor.execute('''
-                INSERT INTO novels (title, file_path, file_size, chapter_count)
-                VALUES (?, ?, ?, ?)
-                ''', (novel_data['title'], novel_data['file_path'], novel_data['file_size'], novel_data['chapter_count']))
+                INSERT INTO novels (title, author, file_path, file_size, chapter_count)
+                VALUES (?, ?, ?, ?, ?)
+                ''', (novel_data['title'], novel_data.get('author'), novel_data['file_path'], novel_data['file_size'], novel_data['chapter_count']))
 
                 novel_id = cursor.lastrowid
                 logger.info(f"Inserted new novel: {novel_data['title']}")
@@ -174,7 +171,7 @@ class NovelStorage:
 
     def search_novels(self, query):
         """
-        Search for novels by keyword.
+        Search for novels by title or author only.
 
         Args:
             query: Search query string. If empty, returns all novels.
@@ -192,69 +189,34 @@ class NovelStorage:
             if not query or not query.strip():
                 # If query is empty, return all novels
                 cursor.execute('''
-                SELECT id, title, file_path, chapter_count
-                FROM novels
-                ORDER BY title
+                SELECT n.id, n.title, n.author, n.file_path, n.chapter_count, c.title as last_chapter
+                FROM novels n
+                LEFT JOIN chapters c ON n.id = c.novel_id AND c.chapter_index = (SELECT MAX(chapter_index) FROM chapters WHERE novel_id = n.id)
+                ORDER BY n.title
                 ''')
             else:
                 # Log the raw query for debugging
                 logger.info(f"Raw search query: {query}")
 
-                # First try direct title search (more reliable for Chinese)
+                # Search by title or author only
                 cursor.execute('''
-                SELECT id, title, file_path, chapter_count
-                FROM novels
-                WHERE title LIKE ?
-                ORDER BY title
-                ''', (f'%{query}%',))
+                SELECT n.id, n.title, n.author, n.file_path, n.chapter_count, c.title as last_chapter
+                FROM novels n
+                LEFT JOIN chapters c ON n.id = c.novel_id AND c.chapter_index = (SELECT MAX(chapter_index) FROM chapters WHERE novel_id = n.id)
+                WHERE n.title LIKE ? OR n.author LIKE ?
+                ORDER BY n.title
+                ''', (f'%{query}%', f'%{query}%'))
 
-                title_results = cursor.fetchall()
-
-                if title_results:
-                    # If we found matches in titles, use those
-                    for row in title_results:
-                        results.append({
-                            'id': row['id'],
-                            'title': row['title'],
-                            'file_path': row['file_path'],
-                            'chapter_count': row['chapter_count']
-                        })
-                else:
-                    # Try full-text search as fallback
-                    try:
-                        cursor.execute('''
-                        SELECT DISTINCT n.id, n.title, n.file_path, n.chapter_count
-                        FROM novels n
-                        JOIN novel_search s ON n.id = s.novel_id
-                        WHERE s.title MATCH ? OR s.content MATCH ?
-                        ORDER BY n.title
-                        ''', (query, query))
-
-                        for row in cursor.fetchall():
-                            results.append({
-                                'id': row['id'],
-                                'title': row['title'],
-                                'file_path': row['file_path'],
-                                'chapter_count': row['chapter_count']
-                            })
-                    except sqlite3.OperationalError as e:
-                        # If FTS search fails, try a simple LIKE search on content
-                        logger.warning(f"FTS search failed, falling back to LIKE search: {str(e)}")
-                        cursor.execute('''
-                        SELECT DISTINCT n.id, n.title, n.file_path, n.chapter_count
-                        FROM novels n
-                        JOIN chapters c ON n.id = c.novel_id
-                        WHERE c.title LIKE ? OR c.content LIKE ?
-                        ORDER BY n.title
-                        ''', (f'%{query}%', f'%{query}%'))
-
-                        for row in cursor.fetchall():
-                            results.append({
-                                'id': row['id'],
-                                'title': row['title'],
-                                'file_path': row['file_path'],
-                                'chapter_count': row['chapter_count']
-                            })
+            # Process results
+            for row in cursor.fetchall():
+                results.append({
+                    'id': row['id'],
+                    'title': row['title'],
+                    'author': row['author'],
+                    'file_path': row['file_path'],
+                    'chapter_count': row['chapter_count'],
+                    'last_chapter': row['last_chapter'] if row['last_chapter'] else ''
+                })
 
             logger.info(f"Search for '{query}' returned {len(results)} results")
 
@@ -280,9 +242,9 @@ class NovelStorage:
         cursor = conn.cursor()
 
         try:
-            # Get novel metadata
+            # Get novel metadata (only essential fields)
             cursor.execute('''
-            SELECT id, title, file_path, chapter_count
+            SELECT id, title, chapter_count
             FROM novels
             WHERE id = ?
             ''', (novel_id,))
@@ -295,7 +257,6 @@ class NovelStorage:
             novel = {
                 'id': novel_row['id'],
                 'title': novel_row['title'],
-                'file_path': novel_row['file_path'],
                 'chapter_count': novel_row['chapter_count'],
                 'chapters': []
             }

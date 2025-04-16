@@ -1,13 +1,14 @@
 # Novel Parser System
 
-A system for parsing and monitoring TXT novel files, with an API for searching and retrieving novel content.
+A system for parsing and monitoring TXT novel files, with an API for searching and retrieving novel content. It can be used as a standalone application or as a backend for a novel reading application.
 
 ## Features
 
 - Automatically parses TXT novel files to identify chapters and their content
+- Extracts author information from filenames with the format "xxx 作者：xx" (optional)
 - Monitors a novel directory (and subdirectories) for file changes (new, modified, deleted, renamed)
 - Provides an API to:
-  - Search novels by keyword
+  - Search novels by title or author (no full-text search)
   - View a novel's table of contents (chapters)
   - View the content of specific chapters
 
@@ -59,13 +60,10 @@ Options:
 
 #### Search Novels
 
+Search novels by title or author (no full-text search):
+
 ```
 GET /api/novels/search?q=<query>
-```
-
-Example:
-```
-GET /api/novels/search?q=小说
 ```
 
 Response:
@@ -75,8 +73,10 @@ Response:
     {
       "id": 1,
       "title": "小说样本",
-      "file_path": "docs/小说样本.txt",
-      "chapter_count": 3
+      "author": "作者名",
+      "file_path": "docs/小说样本 作者：作者名.txt",
+      "chapter_count": 3,
+      "last_chapter": "尾声"
     }
   ]
 }
@@ -88,33 +88,17 @@ Response:
 GET /api/novels/<novel_id>/chapters
 ```
 
-Example:
-```
-GET /api/novels/1/chapters
-```
-
 Response:
 ```json
 {
   "id": 1,
   "title": "小说样本",
-  "file_path": "docs/小说样本.txt",
   "chapter_count": 3,
   "chapters": [
     {
       "id": 1,
-      "title": "第一章 相遇",
+      "title": "第一章",
       "index": 0
-    },
-    {
-      "id": 2,
-      "title": "第二章 我们",
-      "index": 1
-    },
-    {
-      "id": 3,
-      "title": "尾声",
-      "index": 2
     }
   ]
 }
@@ -126,16 +110,11 @@ Response:
 GET /api/chapters/<chapter_id>
 ```
 
-Example:
-```
-GET /api/chapters/2
-```
-
 Response:
 ```json
 {
   "id": 2,
-  "title": "第二章 我们",
+  "title": "第二章",
   "content": "第二段测试样本",
   "index": 1,
   "novel_id": 1,
