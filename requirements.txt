@@ -1,3 +1,5 @@
 flask==2.0.1
 watchdog==2.1.6
 werkzeug==2.0.1
+ebooklib==0.18.0
+beautifulsoup4==4.12.2

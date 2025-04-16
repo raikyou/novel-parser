@@ -9,15 +9,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application code
 COPY . .
 
-# Create a non-root user to run the application
-RUN useradd -m appuser
-USER appuser
-
-# Create a volume for novel files
+# Create volumes for novel files and data
 VOLUME /app/docs
+VOLUME /app/data
 
 # Expose the API port
 EXPOSE 5000
 
 # Run the application
-CMD ["python", "main.py", "--novel-dirs", "docs", "--port", "5000"]
+CMD ["python", "main.py", "--novel-dirs", "docs", "--db-path", "data/novels.db", "--port", "5000"]

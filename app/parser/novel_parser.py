@@ -14,29 +14,26 @@ class NovelParser:
     # Regular expression patterns for chapter detection
     # Advanced patterns for matching various chapter formats in Chinese novels
     CHAPTER_PATTERNS = [
-        # 第X章/节/回/卷 Title- 最常见的章节格式
-        r'^.{0,4}第[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+[章节回卷].{0,30}$',
+        # 第X章 Title
+        r'^第[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+[章节回卷].{0,30}$',
 
-        # 序章、终章、尾声等特殊章节
-        r'^.{0,4}[序终尾楔引前后][章言声子记].{0,30}$',
+        # 序章、终章、尾声
+        r'^[序终尾楔引前后][章言声子记].{0,30}$',
 
-        # 正文、番外等特殊章节
-        r'^.{0,4}[正番内文][文外容章].{0,30}$',
+        # 正文、番外
+        r'^[正文|番外].{0,30}$',
 
-        # 上部、中篇、下卷等特殊章节
-        r'^.{0,4}[上中下外][部篇卷].{0,30}$',
+        # 上部、中篇、下卷
+        r'^[上中下外][部篇卷].{0,30}$',
 
-        # 1.目录 数字加点
-        r'^.{0,4}\d+[、\.].{0,30}$',
+        # 01 title
+        r'^\d{1,4}[^\.].{0,30}$',
 
-        # Chapter1 title 英文章节
-        r'^.{0,4}[Cc][Hh][Aa][Pp][Tt][Ee][Rr]\d+.{0,30}$',
+        # Chapter1 title 
+        r'^Chapter.{0,30}$',
 
-        # 特殊标记章节
-        r'^.{0,4}[☆★✦✧].{0,30}$',
-
-        # 分隔线章节
-        r'^.{0,4}={2,4}.{0,30}$'
+        # ☆ special mark
+        r'^☆.*$',
     ]
 
     def __init__(self):
@@ -73,12 +70,12 @@ class NovelParser:
             author = None
 
             # Check if filename matches the pattern "xxx 作者：xx"
-            author_pattern = re.compile(r'(.+)\s*作者[：:](\s*)(.+)')
+            author_pattern = re.compile(r'(.+)\s作者：(.+)')
             match = author_pattern.match(novel_title)
 
             if match:
                 novel_title = match.group(1).strip()
-                author = match.group(3).strip()
+                author = match.group(2).strip()
                 logger.info(f"Extracted title: {novel_title}, author: {author}")
 
             chapters = self._extract_chapters(content)
@@ -131,12 +128,22 @@ class NovelParser:
         # If no chapters found, treat the entire content as a single chapter
         if not chapter_positions:
             return [{
-                'title': '全文',
+                'title': '简介',
                 'content': content.strip()
             }]
 
         # Process chapters
         chapters = []
+
+        # Check if there's content before the first chapter
+        if chapter_positions[0][0] > 0:  # If the first chapter doesn't start at line 0
+            preface_content = '\n'.join(lines[:chapter_positions[0][0]]).strip()
+            if preface_content:  # Only add if there's actual content
+                chapters.append({
+                    'title': '简介',
+                    'content': preface_content
+                })
+                logger.info(f"Added content before first chapter as '简介' chapter with {len(preface_content)} characters")
 
         # Process each chapter
         for i, (line_num, chapter_title) in enumerate(chapter_positions):

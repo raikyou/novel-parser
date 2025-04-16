@@ -35,10 +35,11 @@ env/
 # Database
 *.db
 *.sqlite3
-
+*.db-journal
 # Logs
 *.log
 logs/
+data/
 
 # Test files
 test_*.py
