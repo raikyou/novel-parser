@@ -21,7 +21,7 @@ class NovelAPI:
         self.storage = novel_storage
         self.host = host
         self.port = port
-        self.app = Flask(__name__)
+        self.app = Flask(__name__, static_folder="/app/app/static")
         self._setup_routes()
 
     def _setup_routes(self):
@@ -35,6 +35,9 @@ class NovelAPI:
 
             # Use the storage.search_novels method directly
             results = self.storage.search_novels(query)
+
+            for novel in results:
+                novel['cover_url'] = "/static/book_cover.jpg"
 
             logger.info(f"Search for '{query}' returned {len(results)} novels")
             return jsonify({'results': results})
