@@ -62,6 +62,26 @@ class NovelAPI:
         def get_status():
             return jsonify({'status': 'running'})
 
+        @self.app.route('/api/folders/search/<folder_name>', methods=['GET'])
+        def search_novels_by_folder_name(folder_name):
+            """Search for novels in a folder by folder name."""
+            try:
+                logger.info(f"Searching for novels in folder named: {folder_name}")
+
+                # Search all novels in the folder with the given name (no query filter)
+                results = self.storage.search_novels_by_folder_name(folder_name, '')
+
+                # Add cover URL to each result
+                for novel in results:
+                    novel['cover_url'] = "/static/book_cover.jpg"
+
+                logger.info(f"Found {len(results)} novels in folder named '{folder_name}'")
+                return jsonify({'results': results, 'folder_name': folder_name})
+
+            except Exception as e:
+                logger.error(f"Error searching novels by folder name: {str(e)}")
+                return jsonify({'error': 'Failed to search novels by folder name'}), 500
+
     def start(self):
         """Start the API server."""
         logger.info(f"Starting Novel API server on {self.host}:{self.port}")

@@ -1,5 +1,7 @@
 import logging
 import sqlite3
+import os
+from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -374,3 +376,61 @@ class NovelStorage:
             return None
         finally:
             conn.close()
+
+    def search_novels_by_folder_name(self, folder_name, query=''):
+        """
+        Search for novels in a folder by folder name (not full path).
+
+        Args:
+            folder_name: Name of the folder to search in
+            query: Search query string. If empty, returns all novels in the folder.
+
+        Returns:
+            list: List of matching novels in the specified folder
+        """
+        conn = sqlite3.connect(self.db_path)
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+
+        results = []
+
+        try:
+            # Find all novels whose file_path contains the folder name
+            if not query or not query.strip():
+                # If query is empty, return all novels in folders with the given name
+                cursor.execute('''
+                SELECT n.id, n.title, n.author, n.file_path, n.chapter_count, c.title as last_chapter
+                FROM novels n
+                LEFT JOIN chapters c ON n.id = c.novel_id AND c.chapter_index = (SELECT MAX(chapter_index) FROM chapters WHERE novel_id = n.id)
+                WHERE n.file_path LIKE ?
+                ORDER BY n.title
+                ''', (f'%/{folder_name}/%',))
+            else:
+                # Search by title or author in folders with the given name
+                cursor.execute('''
+                SELECT n.id, n.title, n.author, n.file_path, n.chapter_count, c.title as last_chapter
+                FROM novels n
+                LEFT JOIN chapters c ON n.id = c.novel_id AND c.chapter_index = (SELECT MAX(chapter_index) FROM chapters WHERE novel_id = n.id)
+                WHERE n.file_path LIKE ? AND (n.title LIKE ? OR n.author LIKE ?)
+                ORDER BY n.title
+                ''', (f'%/{folder_name}/%', f'%{query}%', f'%{query}%'))
+
+            # Process results
+            for row in cursor.fetchall():
+                results.append({
+                    'id': row['id'],
+                    'title': row['title'],
+                    'author': row['author'],
+                    'file_path': row['file_path'],
+                    'chapter_count': row['chapter_count'],
+                    'last_chapter': row['last_chapter'] if row['last_chapter'] else ''
+                })
+
+            logger.info(f"Search for '{query}' in folder named '{folder_name}' returned {len(results)} results")
+
+        except Exception as e:
+            logger.error(f"Error searching for '{query}' in folder named '{folder_name}': {str(e)}")
+        finally:
+            conn.close()
+
+        return results
