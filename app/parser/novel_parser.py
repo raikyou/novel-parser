@@ -1,5 +1,4 @@
 import re
-import os
 import logging
 from pathlib import Path
 
@@ -29,7 +28,7 @@ class NovelParser:
         # 01 title
         r'^\d{1,4}[^\.：&].{0,30}$',
 
-        # Chapter1 title 
+        # Chapter1 title
         r'^Chapter.{0,30}$',
 
         # ☆ special mark

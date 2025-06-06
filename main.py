@@ -1,12 +1,10 @@
 import os
-import argparse
 import logging
 import threading
-from pathlib import Path
 
 from app.storage.novel_storage import NovelStorage
 from app.parser.file_monitor import NovelMonitor
-from app.api.novel_api import NovelAPI
+from app.api.novel_api import create_app
 
 # Create logs and data directories if they don't exist
 os.makedirs('logs', exist_ok=True)
@@ -22,62 +20,64 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-def parse_args():
-    """Parse command line arguments."""
-    parser = argparse.ArgumentParser(description='Novel Parser and API System')
+# Global variables for storage and monitor
+storage = None
+monitor = None
+monitor_thread = None
 
-    parser.add_argument(
-        '--novel-dirs',
-        nargs='+',
-        default=['docs'],
-        help='Directories to monitor for novel files (default: docs)'
-    )
 
-    parser.add_argument(
-        '--db-path',
-        default='data/novels.db',
-        help='Path to the SQLite database file (default: data/novels.db)'
-    )
+def start_monitor():
+    """Start the file monitor."""
+    global storage, monitor, monitor_thread
 
-    parser.add_argument(
-        '--host',
-        default='0.0.0.0',
-        help='Host to bind the API server (default: 0.0.0.0)'
-    )
+    logger.info("Starting Novel Parser System...")
 
-    parser.add_argument(
-        '--port',
-        type=int,
-        default=5000,
-        help='Port to bind the API server (default: 5000)'
-    )
+    # Create storage with fixed path
+    storage = NovelStorage(db_path='data/novels.db')
 
-    return parser.parse_args()
-
-def main():
-    """Main entry point for the application."""
-    args = parse_args()
-
-    # Create storage
-    storage = NovelStorage(db_path=args.db_path)
-
-    # Create API
-    api = NovelAPI(storage, host=args.host, port=args.port)
-
-    # Create monitor
-    monitor = NovelMonitor(args.novel_dirs, storage)
+    # Create monitor with fixed directory
+    monitor = NovelMonitor(['docs'], storage)
 
     # Start monitor in a separate thread
     monitor_thread = threading.Thread(target=monitor.start, daemon=True)
     monitor_thread.start()
 
-    # Start API (blocking)
+    logger.info("Novel Parser System started successfully")
+
+
+def stop_monitor():
+    """Stop the file monitor."""
+    global monitor
+    logger.info("Shutting down Novel Parser System...")
+    if monitor:
+        monitor.stop()
+    logger.info("Novel Parser System shut down")
+
+
+def main():
+    """Main entry point for the application."""
+    import uvicorn
+
+    # Start monitor
+    start_monitor()
+
+    # Create FastAPI app
+    app = create_app(storage)
+
+    # Start server
+    logger.info("Starting Novel API server on 0.0.0.0:5001")
     try:
-        api.start()
+        uvicorn.run(
+            app,
+            host="0.0.0.0",
+            port=5001,
+            log_level="info"
+        )
     except KeyboardInterrupt:
         logger.info("Shutting down...")
     finally:
-        monitor.stop()
+        stop_monitor()
+
 
 if __name__ == '__main__':
     main()

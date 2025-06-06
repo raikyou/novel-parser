@@ -24,6 +24,7 @@ var/
 venv/
 ENV/
 env/
+.venv/
 
 # IDE files
 .idea/
@@ -44,6 +45,7 @@ docker-run.sh
 
 # Database
 data/
+docs/
 *.db
 *.sqlite3
 *.db-journal
@@ -55,7 +57,6 @@ logs/
 # Documentation
 README.md
 LICENSE
-docs/
 
 # Tests
 tests/

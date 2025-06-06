@@ -1,61 +1,51 @@
 # Novel Parser System
 
-A system for parsing and monitoring TXT and EPUB novel files, with an API for searching and retrieving novel content. It can be used as a standalone application or as a backend for a novel reading application.
+A system for parsing and monitoring TXT and EPUB novel files, with a FastAPI-based API for searching and retrieving novel content. It can be used as a standalone application or as a backend for a novel reading application.
 
 ## Features
 
 - Automatically parses TXT and EPUB novel files to identify chapters and their content
 - For EPUB files, uses the built-in table of contents when available
 - Extracts author information from metadata (EPUB) or filenames with the format "xxx 作者：xx" (optional)
-- Monitors a novel directory (and subdirectories) for file changes (new, modified, deleted, renamed)
-- Provides an API to:
+- Monitors the `docs` directory (and subdirectories) for file changes (new, modified, deleted, renamed)
+- Provides a FastAPI-based REST API to:
   - Search novels by title or author (no full-text search)
   - View a novel's table of contents (chapters)
   - View the content of specific chapters
+  - Search novels by folder name
 
 ## Requirements
 
-- Python 3.6+
-- Dependencies listed in `requirements.txt`
+- Python 3.9+
+- uv package manager
 
 ## Installation
 
-### Method 1: Manual Installation
+### Method 1: Using uv (Recommended)
 
 1. Clone the repository
-2. Install dependencies:
-
-```bash
-pip install -r requirements.txt
-```
+2. Install uv if you haven't already:
+   ```bash
+   curl -LsSf https://astral.sh/uv/install.sh | sh
+   ```
+3. Install dependencies:
+   ```bash
+   uv sync
+   ```
 
 ### Method 2: Docker
 
 ```bash
-# Pull the image
-docker pull ghcr.io/yourusername/novel-parser:latest
+# Build the image
+docker build -t novel-parser .
 
 # Run the container
 docker run -d \
-  -p 5000:5000 \
+  -p 5001:5001 \
   -v /path/to/novels:/app/docs \
   -v /path/to/data:/app/data \
-  -v /path/to/logs:/app/logs \
   --name novel-parser \
-  ghcr.io/yourusername/novel-parser:latest
-```
-
-You can also use the provided `docker-run.sh` script:
-
-```bash
-# Make the script executable
-chmod +x docker-run.sh
-
-# Run with default settings
-./docker-run.sh
-
-# Or specify custom directories and port
-./docker-run.sh --port 8080 --dir /path/to/novels --data /path/to/data
+  novel-parser
 ```
 
 ## Usage
@@ -63,21 +53,21 @@ chmod +x docker-run.sh
 ### Starting the System
 
 ```bash
-python main.py --novel-dirs docs --db-path data/novels.db --port 5000
+uv run python main.py
 ```
 
-Options:
-- `--novel-dirs`: Directories to monitor for novel files (default: docs)
-- `--db-path`: Path to the SQLite database file (default: data/novels.db)
-- `--host`: Host to bind the API server (default: 0.0.0.0)
-- `--port`: Port to bind the API server (default: 5000)
-- `--log-level`: Set the logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) (default: INFO)
+The system uses fixed configuration:
+- Monitors the `docs` directory for novel files
+- Uses `data/novels.db` for the SQLite database
+- Runs the API server on `0.0.0.0:5001`
 
 The application creates the following directories if they don't exist:
 - `logs/`: For log files
 - `data/`: For the SQLite database
 
 ### API Endpoints
+
+The API is now built with FastAPI and includes automatic OpenAPI documentation available at `http://localhost:5001/docs`.
 
 #### Search Novels
 
@@ -97,7 +87,8 @@ Response:
       "author": "作者名",
       "file_path": "docs/小说样本 作者：作者名.txt",
       "chapter_count": 3,
-      "last_chapter": "尾声"
+      "last_chapter": "尾声",
+      "cover_url": "/static/book_cover.jpg"
     }
   ]
 }
@@ -106,7 +97,7 @@ Response:
 #### Get Novel Chapters
 
 ```
-GET /api/novels/<novel_id>/chapters
+GET /api/novels/{novel_id}/chapters
 ```
 
 Response:
@@ -128,7 +119,7 @@ Response:
 #### Get Chapter Content
 
 ```
-GET /api/chapters/<chapter_id>
+GET /api/chapters/{chapter_id}
 ```
 
 Response:
@@ -143,15 +134,52 @@ Response:
 }
 ```
 
+#### Search Novels by Folder
+
+```
+GET /api/folders/search/{folder_name}
+```
+
+Response:
+```json
+{
+  "results": [
+    {
+      "id": 1,
+      "title": "小说样本",
+      "author": "作者名",
+      "file_path": "docs/folder_name/小说样本.txt",
+      "chapter_count": 3,
+      "last_chapter": "尾声",
+      "cover_url": "/static/book_cover.jpg"
+    }
+  ],
+  "folder_name": "folder_name"
+}
+```
+
+#### API Status
+
+```
+GET /api/status
+```
+
+Response:
+```json
+{
+  "status": "running"
+}
+```
+
 ## How It Works
 
-1. The system monitors the specified directories for TXT and EPUB files
+1. The system monitors the `docs` directory for TXT and EPUB files
 2. When a new file is detected, it parses the content to identify chapters
 3. When a file is modified, it re-parses the content and updates the database
 4. When a file is deleted, it removes the corresponding novel from the database
 5. When a file is renamed, it updates the file path in the database
 6. The parsed data is stored in an SQLite database
-7. The API provides access to the stored data
+7. The FastAPI-based REST API provides access to the stored data with automatic OpenAPI documentation
 
 ## Chapter Detection
 

@@ -7,7 +7,6 @@ from watchdog.events import FileSystemEventHandler
 
 from app.parser.novel_parser import NovelParser
 from app.parser.epub_parser import EpubParser
-from app.storage.novel_storage import NovelStorage
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)

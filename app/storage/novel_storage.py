@@ -1,7 +1,5 @@
 import logging
 import sqlite3
-import os
-from pathlib import Path
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
