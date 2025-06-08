@@ -45,6 +45,8 @@ logs/
 
 # Test files
 test_*.py
+tests/
+.pytest_cache/
 
 # OS specific
 .DS_Store

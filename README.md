@@ -16,7 +16,7 @@ A system for parsing and monitoring TXT and EPUB novel files, with a FastAPI-bas
 
 ## Requirements
 
-- Python 3.9+
+- Python 3.12+
 - uv package manager
 
 ## Installation

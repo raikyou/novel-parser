@@ -1,4 +1,4 @@
-FROM ghcr.io/astral-sh/uv:python3.9-alpine
+FROM ghcr.io/astral-sh/uv:python3.12-alpine
 
 WORKDIR /app
 
@@ -14,4 +14,4 @@ VOLUME /app/docs /app/data
 EXPOSE 5001
 
 # Run the application
-CMD ["uv", "run", "main.py"]
+CMD ["uv", "run", "novel-parser"]

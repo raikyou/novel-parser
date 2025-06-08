@@ -1,13 +1,38 @@
 [project]
 name = "novel-parser"
-version = "0.1.0"
-description = "A system for parsing and monitoring TXT and EPUB novel files, with FastAPI for searching and retrieving novel content"
+version = "0.2.0"
+description = "A modern, high-performance system for parsing and monitoring TXT and EPUB novel files with byte-offset indexing and incremental parsing"
 readme = "README.md"
-requires-python = ">=3.9"
+license = {text = "MIT"}
+requires-python = ">=3.12"
+
 dependencies = [
     "fastapi>=0.104.0",
     "uvicorn[standard]>=0.24.0",
-    "watchdog>=2.1.6",
+    "watchdog>=3.0.0",
     "ebooklib>=0.18.0",
     "beautifulsoup4>=4.12.2",
+]
+
+[project.scripts]
+novel-parser = "novel_parser.main:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/novel_parser"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/README.md",
+    "/pyproject.toml",
+]
+
+[dependency-groups]
+dev = [
+    "pydantic>=2.11.5",
+    "pytest>=8.4.0",
 ]
