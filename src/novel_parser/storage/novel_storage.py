@@ -1,9 +1,14 @@
 import sqlite3
 from pathlib import Path
-from ..core.file_reader import FileReader
 from ..models.base import NovelMetadata
 
+
 # 延迟导入解决循环依赖
+def get_file_reader():
+    from ..parser.txt_parser import FileReader
+    return FileReader
+
+
 def get_epub_parser():
     from ..parser.epub_parser import EpubParser
     return EpubParser()
@@ -167,20 +172,16 @@ class NovelStorage:
 
         file_path = Path(row['file_path'])
         if file_path.suffix.lower() == '.epub':
-            # 使用延迟导入的解析器
             parser = get_epub_parser()
             content = parser.get_chapter_content(file_path, row['spine_id'])
-            if content is None:
-                conn.close()
-                return None
         else:
-            # 非EPUB文件使用原有方式
-            content = FileReader.read_content_by_lines(
+            parser = get_file_reader()
+            content = parser.read_content_by_lines(
                 file_path, row['start_line'], row['end_line']
             )
-            if content is None:
-                conn.close()
-                return None
+        if content is None:
+            conn.close()
+            return None
 
         conn.close()
         return {

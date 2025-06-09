@@ -1,7 +1,20 @@
 import re
 from pathlib import Path
-from ..core.file_reader import FileReader
 from ..models.base import NovelMetadata, ChapterMetadata
+
+
+class FileReader:
+    @staticmethod
+    def read_content_by_lines(file_path: Path, start_line: int, end_line: int) -> str:
+        """Read content between line numbers (start_line inclusive, end_line exclusive)"""
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            lines = f.readlines()
+            return ''.join(lines[start_line:end_line])
+
+    @staticmethod
+    def read_full_content(file_path: Path) -> str:
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+            return f.read()
 
 
 class NovelParser:
@@ -10,7 +23,7 @@ class NovelParser:
         r'^[序终尾楔引前后][章言声子记].{0,30}$',
         r'^(正文|番外).{0,30}$',
         r'^[上中下外][部篇卷].{0,30}$',
-        r'^\d{1,4}[^\.：&].{0,30}$',
+        r'^\d{1,4}[^\.：、&].{0,30}$',
         r'^Chapter.{0,30}$',
         r'^[☆★].{0,30}$',
         r'^卷[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+.{0,30}$'
@@ -50,6 +63,7 @@ class NovelParser:
         chapter_positions = []
 
         for i, line in enumerate(lines):
+            line = line.strip()
             if any(re.fullmatch(pattern, line) for pattern in self.CHAPTER_PATTERNS):
                 chapter_positions.append((i, line))
 
@@ -63,7 +77,6 @@ class NovelParser:
 
         chapters = []
         for i, (line_num, chapter_title) in enumerate(chapter_positions):
-            chapter_title = chapter_title.strip()
             start_line = line_num + 1  # Content starts after chapter title
 
             if i < len(chapter_positions) - 1:

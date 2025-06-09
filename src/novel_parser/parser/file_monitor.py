@@ -1,10 +1,9 @@
 import time
-import sqlite3
 from pathlib import Path
 from watchdog.observers import Observer
 from watchdog.events import FileSystemEventHandler
 
-from .novel_parser import NovelParser
+from .txt_parser import NovelParser
 from .epub_parser import EpubParser
 from ..storage.novel_storage import NovelStorage
 
@@ -24,9 +23,8 @@ class NovelFileHandler(FileSystemEventHandler):
             self._process_novel_file(event.src_path)
 
     def on_modified(self, event):
-        print(f"File modified event: {event.src_path}")
         if not event.is_directory and self._is_supported_file(event.src_path):
-                    self._process_novel_file(event.src_path)
+            self._process_novel_file(event.src_path)
 
     def on_deleted(self, event):
         if not event.is_directory and self._is_supported_file(event.src_path):
