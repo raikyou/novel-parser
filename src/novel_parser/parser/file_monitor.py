@@ -53,7 +53,10 @@ class NovelFileHandler(FileSystemEventHandler):
         novel_data = parser.parse_file(file_path_obj)
 
         if novel_data:
-            self.storage.save_novel(novel_data)
+            # 获取文件修改时间并转换为ISO格式
+            mtime = file_path_obj.stat().st_mtime
+            modified_time = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(mtime))
+            self.storage.save_novel(novel_data, modified_time)
 
 
 class NovelMonitor:
@@ -65,7 +68,6 @@ class NovelMonitor:
         self._is_running = False
 
     def start(self):
-        self._clean_orphaned_records()
         self._scan_existing_files()
 
         for novel_dir in self.novel_dirs:
@@ -81,22 +83,41 @@ class NovelMonitor:
         except KeyboardInterrupt:
             self.stop()
 
-    def _clean_orphaned_records(self):
-        """Clean up database records for files that no longer exist"""
-        return self.storage.clean_orphaned_records()
-
     def stop(self):
         self._is_running = False
         self.observer.stop()
         self.observer.join()
 
     def _scan_existing_files(self):
+        # 1. 收集所有监控目录下的文件
+        existing_files = set()
         for novel_dir in self.novel_dirs:
             if not novel_dir.exists():
                 continue
 
-            for file_path in novel_dir.glob('**/*.txt'):
-                self.handler._process_novel_file(str(file_path))
+            for file_path in novel_dir.rglob('*'):
+                if not file_path.is_file() or not self.handler._is_supported_file(str(file_path)):
+                    continue
+                existing_files.add(str(file_path.resolve()))
 
-            for file_path in novel_dir.glob('**/*.epub'):
-                self.handler._process_novel_file(str(file_path))
+        # 2. 获取数据库中的所有记录
+        db_records = {novel['file_path']: novel for novel in self.storage.search_novels()}
+
+        # 3. 清理已删除文件的记录
+        for db_path in db_records:
+            if db_path not in existing_files:
+                self.storage.delete_novel(db_path)
+
+        # 4. 处理新文件和已修改的文件
+        for file_path in existing_files:
+            path_obj = Path(file_path)
+            current_mtime = time.strftime('%Y-%m-%dT%H:%M:%S', time.localtime(path_obj.stat().st_mtime))
+
+            if file_path in db_records:
+                # 文件存在于数据库中，检查是否需要更新
+                stored_mtime = db_records[file_path].get('modified_time', '')
+                if current_mtime != stored_mtime:
+                    self.handler._process_novel_file(file_path)
+            else:
+                # 新文件，添加到数据库
+                self.handler._process_novel_file(file_path)

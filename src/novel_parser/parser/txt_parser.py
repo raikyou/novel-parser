@@ -23,7 +23,7 @@ class NovelParser:
         r'^[序终尾楔引前后][章言声子记].{0,30}$',
         r'^(正文|番外).{0,30}$',
         r'^[上中下外][部篇卷].{0,30}$',
-        r'^\d{1,4}[^\.：、&].{0,30}$',
+        r'^\d{1,4}(?![.：、&\d]).{0,40}$',
         r'^Chapter.{0,30}$',
         r'^[☆★].{0,30}$',
         r'^卷[\d〇零一二两三四五六七八九十百千万壹贰叁肆伍陆柒捌玖拾佰仟]+.{0,30}$'
@@ -63,8 +63,8 @@ class NovelParser:
         chapter_positions = []
 
         for i, line in enumerate(lines):
-            line = line.strip()
-            if any(re.fullmatch(pattern, line) for pattern in self.CHAPTER_PATTERNS):
+            line_cleaned = line.replace(' ', '')
+            if any(re.fullmatch(pattern, line_cleaned) for pattern in self.CHAPTER_PATTERNS):
                 chapter_positions.append((i, line))
 
         if not chapter_positions:  # If no chapters found, treat the entire content as a single chapter

@@ -3,7 +3,6 @@ from pathlib import Path
 from ..models.base import NovelMetadata
 
 
-# 延迟导入解决循环依赖
 def get_file_reader():
     from ..parser.txt_parser import FileReader
     return FileReader
@@ -31,7 +30,8 @@ class NovelStorage:
             title TEXT NOT NULL,
             author TEXT,
             file_path TEXT UNIQUE NOT NULL,
-            chapter_count INTEGER NOT NULL
+            chapter_count INTEGER NOT NULL,
+            modified_time TEXT NOT NULL
         )
         ''')
 
@@ -51,7 +51,7 @@ class NovelStorage:
         conn.commit()
         conn.close()
 
-    def save_novel(self, novel_data: NovelMetadata) -> int | None:
+    def save_novel(self, novel_data: NovelMetadata, modified_time: str) -> int | None:
         conn = sqlite3.connect(self.db_path)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
@@ -63,16 +63,17 @@ class NovelStorage:
             novel_id = existing['id']
             cursor.execute('''
             UPDATE novels
-            SET title = ?, author = ?, chapter_count = ?
+            SET title = ?, author = ?, chapter_count = ?, modified_time = ?
             WHERE id = ?
-            ''', (novel_data.title, novel_data.author, novel_data.chapter_count, novel_id))
+            ''', (novel_data.title, novel_data.author, novel_data.chapter_count,
+                  modified_time, novel_id))
             cursor.execute("DELETE FROM chapters WHERE novel_id = ?", (novel_id,))
         else:
             cursor.execute('''
-            INSERT INTO novels (title, author, file_path, chapter_count)
-            VALUES (?, ?, ?, ?)
+            INSERT INTO novels (title, author, file_path, chapter_count, modified_time)
+            VALUES (?, ?, ?, ?, ?)
             ''', (novel_data.title, novel_data.author, novel_data.file_path,
-                  novel_data.chapter_count))
+                  novel_data.chapter_count, modified_time))
             novel_id = cursor.lastrowid
 
         for chapter in novel_data.chapters:
@@ -225,21 +226,3 @@ class NovelStorage:
         conn.close()
         return success
 
-    def get_all_file_paths(self) -> list[str]:
-        """Get all file paths stored in the database"""
-        conn = sqlite3.connect(self.db_path)
-        cursor = conn.cursor()
-        cursor.execute("SELECT file_path FROM novels")
-        paths = [row[0] for row in cursor.fetchall()]
-        conn.close()
-        return paths
-
-    def clean_orphaned_records(self) -> int:
-        """Delete records for files that no longer exist"""
-        orphaned_count = 0
-        for file_path in self.get_all_file_paths():
-            if not Path(file_path).exists():
-                if self.delete_novel(file_path):
-                    orphaned_count += 1
-        print(f"Deleted {orphaned_count} orphaned records")
-        return orphaned_count
