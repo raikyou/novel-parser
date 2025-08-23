@@ -5,11 +5,11 @@ from watchdog.events import FileSystemEventHandler
 
 from .txt_parser import NovelParser
 from .epub_parser import EpubParser
-from ..storage.novel_storage import NovelStorage
+from ..storage.database_interface import DatabaseInterface
 
 
 class NovelFileHandler(FileSystemEventHandler):
-    def __init__(self, novel_storage: NovelStorage):
+    def __init__(self, novel_storage: DatabaseInterface):
         self.storage = novel_storage
         self.txt_parser = NovelParser()
         self.epub_parser = EpubParser()
@@ -60,7 +60,7 @@ class NovelFileHandler(FileSystemEventHandler):
 
 
 class NovelMonitor:
-    def __init__(self, novel_dirs: list[str], novel_storage: NovelStorage):
+    def __init__(self, novel_dirs: list[str], novel_storage: DatabaseInterface):
         self.novel_dirs = [Path(d).resolve() for d in novel_dirs]
         self.storage = novel_storage
         self.observer = Observer()

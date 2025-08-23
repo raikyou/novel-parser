@@ -29,9 +29,10 @@ A system for parsing and monitoring TXT and EPUB novel files, with a FastAPI-bas
    ```bash
    curl -LsSf https://astral.sh/uv/install.sh | sh
    ```
-3. Install dependencies:
+3. Install dependencies and run:
    ```bash
    uv sync
+   uv run python main.py
    ```
 
 ### Method 2: Docker with SQLite (Default)
@@ -51,39 +52,13 @@ docker run -d \
 
 ### Method 3: Docker Compose
 
-#### Using SQLite (Default)
 ```bash
 # Copy environment file and customize if needed
 cp .env.example .env
-
-# Start with SQLite
-docker-compose up -d novel-parser
-```
-
-#### Using PostgreSQL
-```bash
-# Copy environment file and configure for PostgreSQL
-cp .env.example .env
-
-# Edit .env file:
-# DATABASE_TYPE=postgresql
-# POSTGRES_PASSWORD=your_secure_password
-
-# Start with PostgreSQL
-docker-compose --profile postgresql up -d
-```
-
-## Usage
-
-### Starting the System
-
-```bash
-uv run python main.py
+docker compose up -d
 ```
 
 ## Configuration
-
-The system supports both SQLite and PostgreSQL databases. Configuration is handled through environment variables:
 
 ### Environment Variables
 
@@ -102,55 +77,13 @@ The system supports both SQLite and PostgreSQL databases. Configuration is handl
 | `API_PORT` | `5001` | API server port |
 | `DOCS_DIR` | `docs` | Directory to monitor for novel files |
 
-### Default Configuration
-- Monitors the `docs` directory for novel files
-- Uses SQLite database at `data/novels.db` by default
-- Runs the API server on `0.0.0.0:5001`
-
-The application creates the following directories if they don't exist:
-- `data/`: For the SQLite database (when using SQLite)
-- `docs/`: For novel files (configurable via `DOCS_DIR`)
-
 ### PostgreSQL Schema Support
-
-When using PostgreSQL, you can specify a custom schema using the `POSTGRES_SCHEMA` environment variable. This enables multiple projects to share a single PostgreSQL database instance while maintaining data isolation:
-
-**Benefits:**
-- **Data Isolation**: Each project's data is stored in a separate schema
-- **Resource Optimization**: Share a single PostgreSQL instance across multiple projects
-- **Easy Management**: All schemas within the same database for simplified backup/restore
-
-**Usage Examples:**
-```bash
-# Project 1 using 'project1' schema
-POSTGRES_SCHEMA=project1
-
-# Project 2 using 'project2' schema
-POSTGRES_SCHEMA=project2
-
-# Default public schema (if not specified)
-POSTGRES_SCHEMA=public
-```
-
-**Schema Management:**
-- Schemas are automatically created if they don't exist
-- Tables are created within the specified schema
-- All database operations are isolated to the schema
-- Migration tool supports schema-specific migrations
 
 **Permission Handling:**
 If your database user doesn't have schema creation permissions, you can:
 1. Create the schema manually in your database
 2. Set `POSTGRES_SKIP_SCHEMA_CREATION=true` in your environment
 3. Use `--skip-schema-creation` flag with the migration tool
-
-```bash
-# For users without schema creation permissions
-POSTGRES_SKIP_SCHEMA_CREATION=true
-
-# Migration with existing schema
-python migrate_db.py --use-env --skip-schema-creation
-```
 
 ## Database Migration
 
@@ -169,48 +102,22 @@ python migrate_db.py --dry-run --use-env
 python migrate_db.py --use-env
 ```
 
+- `--use-env`: Use environment variables for PostgreSQL connection
+- `--dry-run`: Perform a test run without actual data migration
+
 ### Method 2: Docker Migration
 
 ```bash
 # Set up environment variables for PostgreSQL
 cp .env.example .env
-# Edit .env to configure PostgreSQL settings
 
 # Run migration using Docker
-docker-compose -f docker-compose.migration.yml up migration
+docker compose -f docker-compose.migration.yml up migration
 
 # After successful migration, start the application with PostgreSQL
 # Edit .env: DATABASE_TYPE=postgresql
-docker-compose --profile postgresql up -d
+docker compose up -d
 ```
-
-### Migration Options
-
-- `--sqlite-path`: Path to SQLite database (default: `data/novels.db`)
-- `--postgres-url`: PostgreSQL connection URL (alternative to `--use-env`)
-- `--schema`: PostgreSQL schema name (defaults to environment variable or 'public')
-- `--use-env`: Use environment variables for PostgreSQL connection
-- `--dry-run`: Perform a test run without actual data migration
-
-### Schema-Specific Migration Examples
-
-```bash
-# Migrate to a specific schema
-python migrate_db.py --use-env --schema project1
-
-# Migrate using custom connection and schema
-python migrate_db.py --postgres-url "postgresql://user:pass@host:5432/db" --schema project2
-
-# Test migration to custom schema (dry run)
-python migrate_db.py --dry-run --use-env --schema test_project
-```
-
-The migration tool:
-- Preserves all novel metadata and chapter information
-- Maintains data integrity with foreign key relationships
-- Provides progress tracking and detailed logging
-- Includes rollback capabilities in case of errors
-- Verifies migration completeness
 
 ### API Endpoints
 
@@ -328,48 +235,6 @@ Response:
 6. The parsed data is stored in either SQLite (default) or PostgreSQL database
 7. The FastAPI-based REST API provides access to the stored data with automatic OpenAPI documentation
 
-### Database Support
-
-The application supports two database backends:
-
-- **SQLite** (default): Lightweight, file-based database perfect for single-user deployments
-- **PostgreSQL**: Full-featured relational database ideal for multi-user environments and production deployments
-
-Both databases use the same schema and provide identical functionality. The choice between them depends on your deployment requirements and scalability needs.
-
-## Quick Start Examples
-
-### Using SQLite (Default)
-```bash
-# No configuration needed - just run
-uv run python main.py
-```
-
-### Using PostgreSQL
-```bash
-# Set environment variables
-export DATABASE_TYPE=postgresql
-export POSTGRES_HOST=localhost
-export POSTGRES_DB=novel_parser
-export POSTGRES_USER=your_user
-export POSTGRES_PASSWORD=your_password
-
-# Run the application
-uv run python main.py
-```
-
-### Using Docker with PostgreSQL
-```bash
-# Create .env file
-cat > .env << EOF
-DATABASE_TYPE=postgresql
-POSTGRES_PASSWORD=secure_password
-EOF
-
-# Start PostgreSQL and the application
-docker-compose --profile postgresql up -d
-```
-
 ## Chapter Detection
 
 ### TXT Files
@@ -387,27 +252,3 @@ For EPUB files, the system:
 2. If no TOC is available, attempts to extract chapters from the spine
 3. If no chapters can be identified, treats the entire content as a single chapter
 4. Content that appears before the first chapter (like cover pages or introductions) is captured as a separate chapter titled "正文" (Main Text)
-
-## Troubleshooting
-
-### Docker Permission Issues
-
-If you encounter permission errors when running the Docker container, make sure:
-
-1. The container has access to write to the mounted volumes:
-   ```bash
-   # Create directories with appropriate permissions
-   mkdir -p data logs
-   chmod 777 data logs
-   ```
-
-2. Use the provided `docker-run.sh` script which handles directory creation and permissions.
-
-3. Check container logs for specific errors:
-   ```bash
-   docker logs novel-parser
-   ```
-
-## License
-
-MIT

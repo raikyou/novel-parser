@@ -1,6 +1,6 @@
 __version__ = "2.0.0"
 
-from .storage import NovelStorage
+from .storage import SQLiteStorage, PostgreSQLStorage, DatabaseInterface
 from .parser import NovelParser, EpubParser, NovelMonitor
 from .api import create_app
 from .models import (
@@ -10,7 +10,9 @@ from .models import (
 )
 
 __all__ = [
-    "NovelStorage",
+    "SQLiteStorage",
+    "PostgreSQLStorage",
+    "DatabaseInterface",
     "NovelParser",
     "EpubParser",
     "NovelMonitor",

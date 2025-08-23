@@ -7,10 +7,10 @@ from ..models import (
     ChapterInfo,
     ChapterContent,
 )
-from ..storage.novel_storage import NovelStorage
+from ..storage.database_interface import DatabaseInterface
 
 
-def create_app(novel_storage: NovelStorage) -> FastAPI:
+def create_app(novel_storage: DatabaseInterface) -> FastAPI:
     app = FastAPI(title="Novel Parser API", version="2.0.0")
 
     static_path = Path(__file__).parent.parent / "static"
