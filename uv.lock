@@ -186,6 +186,7 @@ dependencies = [
     { name = "ebooklib" },
     { name = "fastapi" },
     { name = "psycopg2-binary" },
+    { name = "python-dotenv" },
     { name = "uvicorn", extra = ["standard"] },
     { name = "watchdog" },
 ]
@@ -202,6 +203,7 @@ requires-dist = [
     { name = "ebooklib", specifier = ">=0.18.0" },
     { name = "fastapi", specifier = ">=0.104.0" },
     { name = "psycopg2-binary", specifier = ">=2.9.10" },
+    { name = "python-dotenv", specifier = ">=1.0.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.24.0" },
     { name = "watchdog", specifier = ">=3.0.0" },
 ]

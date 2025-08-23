@@ -96,6 +96,8 @@ The system supports both SQLite and PostgreSQL databases. Configuration is handl
 | `POSTGRES_DB` | `novel_parser` | PostgreSQL database name |
 | `POSTGRES_USER` | `novel_parser` | PostgreSQL username |
 | `POSTGRES_PASSWORD` | `password` | PostgreSQL password |
+| `POSTGRES_SCHEMA` | `public` | PostgreSQL schema name for data isolation |
+| `POSTGRES_SKIP_SCHEMA_CREATION` | `false` | Skip automatic schema creation (assume schema exists) |
 | `API_HOST` | `0.0.0.0` | API server host |
 | `API_PORT` | `5001` | API server port |
 | `DOCS_DIR` | `docs` | Directory to monitor for novel files |
@@ -108,6 +110,47 @@ The system supports both SQLite and PostgreSQL databases. Configuration is handl
 The application creates the following directories if they don't exist:
 - `data/`: For the SQLite database (when using SQLite)
 - `docs/`: For novel files (configurable via `DOCS_DIR`)
+
+### PostgreSQL Schema Support
+
+When using PostgreSQL, you can specify a custom schema using the `POSTGRES_SCHEMA` environment variable. This enables multiple projects to share a single PostgreSQL database instance while maintaining data isolation:
+
+**Benefits:**
+- **Data Isolation**: Each project's data is stored in a separate schema
+- **Resource Optimization**: Share a single PostgreSQL instance across multiple projects
+- **Easy Management**: All schemas within the same database for simplified backup/restore
+
+**Usage Examples:**
+```bash
+# Project 1 using 'project1' schema
+POSTGRES_SCHEMA=project1
+
+# Project 2 using 'project2' schema
+POSTGRES_SCHEMA=project2
+
+# Default public schema (if not specified)
+POSTGRES_SCHEMA=public
+```
+
+**Schema Management:**
+- Schemas are automatically created if they don't exist
+- Tables are created within the specified schema
+- All database operations are isolated to the schema
+- Migration tool supports schema-specific migrations
+
+**Permission Handling:**
+If your database user doesn't have schema creation permissions, you can:
+1. Create the schema manually in your database
+2. Set `POSTGRES_SKIP_SCHEMA_CREATION=true` in your environment
+3. Use `--skip-schema-creation` flag with the migration tool
+
+```bash
+# For users without schema creation permissions
+POSTGRES_SKIP_SCHEMA_CREATION=true
+
+# Migration with existing schema
+python migrate_db.py --use-env --skip-schema-creation
+```
 
 ## Database Migration
 
@@ -145,8 +188,22 @@ docker-compose --profile postgresql up -d
 
 - `--sqlite-path`: Path to SQLite database (default: `data/novels.db`)
 - `--postgres-url`: PostgreSQL connection URL (alternative to `--use-env`)
+- `--schema`: PostgreSQL schema name (defaults to environment variable or 'public')
 - `--use-env`: Use environment variables for PostgreSQL connection
 - `--dry-run`: Perform a test run without actual data migration
+
+### Schema-Specific Migration Examples
+
+```bash
+# Migrate to a specific schema
+python migrate_db.py --use-env --schema project1
+
+# Migrate using custom connection and schema
+python migrate_db.py --postgres-url "postgresql://user:pass@host:5432/db" --schema project2
+
+# Test migration to custom schema (dry run)
+python migrate_db.py --dry-run --use-env --schema test_project
+```
 
 The migration tool:
 - Preserves all novel metadata and chapter information

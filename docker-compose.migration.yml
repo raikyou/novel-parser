@@ -14,6 +14,8 @@ services:
       POSTGRES_DB: ${POSTGRES_DB:-novel_parser}
       POSTGRES_USER: ${POSTGRES_USER:-novel_parser}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
+      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-public}
+      POSTGRES_SKIP_SCHEMA_CREATION: ${POSTGRES_SKIP_SCHEMA_CREATION:-false}
     command: python migrate_db.py --use-env --sqlite-path data/novels.db
     depends_on:
       - postgres

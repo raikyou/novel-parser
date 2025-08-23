@@ -3,6 +3,15 @@ import threading
 import signal
 from pathlib import Path
 
+# Load environment variables from .env file if it exists
+try:
+    from dotenv import load_dotenv
+    env_file = Path(__file__).parent.parent.parent / ".env"
+    if env_file.exists():
+        load_dotenv(env_file)
+except ImportError:
+    pass  # python-dotenv not available, continue with system env vars
+
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 from novel_parser.storage import DatabaseFactory
@@ -25,7 +34,7 @@ def create_storage():
     if Config.DATABASE_TYPE == "sqlite":
         return DatabaseFactory.create_database("sqlite", db_path=Config.SQLITE_DB_PATH)
     elif Config.DATABASE_TYPE == "postgresql":
-        return DatabaseFactory.create_database("postgresql", connection_url=Config.get_postgres_url())
+        return DatabaseFactory.create_database("postgresql", connection_url=Config.get_postgres_url(), schema=Config.POSTGRES_SCHEMA, skip_schema_creation=Config.POSTGRES_SKIP_SCHEMA_CREATION)
     else:
         raise ValueError(f"Unsupported database type: {Config.DATABASE_TYPE}")
 
