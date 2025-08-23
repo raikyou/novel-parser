@@ -18,6 +18,7 @@ A system for parsing and monitoring TXT and EPUB novel files, with a FastAPI-bas
 
 - Python 3.12+
 - uv package manager
+- SQLite (default) or PostgreSQL (optional)
 
 ## Installation
 
@@ -33,19 +34,43 @@ A system for parsing and monitoring TXT and EPUB novel files, with a FastAPI-bas
    uv sync
    ```
 
-### Method 2: Docker
+### Method 2: Docker with SQLite (Default)
 
 ```bash
 # Build the image
 docker build -t novel-parser .
 
-# Run the container
+# Run with SQLite (default)
 docker run -d \
   -p 5001:5001 \
   -v /path/to/novels:/app/docs \
   -v /path/to/data:/app/data \
   --name novel-parser \
   novel-parser
+```
+
+### Method 3: Docker Compose
+
+#### Using SQLite (Default)
+```bash
+# Copy environment file and customize if needed
+cp .env.example .env
+
+# Start with SQLite
+docker-compose up -d novel-parser
+```
+
+#### Using PostgreSQL
+```bash
+# Copy environment file and configure for PostgreSQL
+cp .env.example .env
+
+# Edit .env file:
+# DATABASE_TYPE=postgresql
+# POSTGRES_PASSWORD=your_secure_password
+
+# Start with PostgreSQL
+docker-compose --profile postgresql up -d
 ```
 
 ## Usage
@@ -56,14 +81,79 @@ docker run -d \
 uv run python main.py
 ```
 
-The system uses fixed configuration:
+## Configuration
+
+The system supports both SQLite and PostgreSQL databases. Configuration is handled through environment variables:
+
+### Environment Variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `DATABASE_TYPE` | `sqlite` | Database type: `sqlite` or `postgresql` |
+| `SQLITE_DB_PATH` | `data/novels.db` | Path to SQLite database file |
+| `POSTGRES_HOST` | `localhost` | PostgreSQL host |
+| `POSTGRES_PORT` | `5432` | PostgreSQL port |
+| `POSTGRES_DB` | `novel_parser` | PostgreSQL database name |
+| `POSTGRES_USER` | `novel_parser` | PostgreSQL username |
+| `POSTGRES_PASSWORD` | `password` | PostgreSQL password |
+| `API_HOST` | `0.0.0.0` | API server host |
+| `API_PORT` | `5001` | API server port |
+| `DOCS_DIR` | `docs` | Directory to monitor for novel files |
+
+### Default Configuration
 - Monitors the `docs` directory for novel files
-- Uses `data/novels.db` for the SQLite database
+- Uses SQLite database at `data/novels.db` by default
 - Runs the API server on `0.0.0.0:5001`
 
 The application creates the following directories if they don't exist:
-- `logs/`: For log files
-- `data/`: For the SQLite database
+- `data/`: For the SQLite database (when using SQLite)
+- `docs/`: For novel files (configurable via `DOCS_DIR`)
+
+## Database Migration
+
+If you want to migrate from SQLite to PostgreSQL, use the provided migration tool:
+
+### Method 1: Direct Migration
+
+```bash
+# Install dependencies
+uv sync
+
+# Run migration (dry run first to test)
+python migrate_db.py --dry-run --use-env
+
+# Run actual migration
+python migrate_db.py --use-env
+```
+
+### Method 2: Docker Migration
+
+```bash
+# Set up environment variables for PostgreSQL
+cp .env.example .env
+# Edit .env to configure PostgreSQL settings
+
+# Run migration using Docker
+docker-compose -f docker-compose.migration.yml up migration
+
+# After successful migration, start the application with PostgreSQL
+# Edit .env: DATABASE_TYPE=postgresql
+docker-compose --profile postgresql up -d
+```
+
+### Migration Options
+
+- `--sqlite-path`: Path to SQLite database (default: `data/novels.db`)
+- `--postgres-url`: PostgreSQL connection URL (alternative to `--use-env`)
+- `--use-env`: Use environment variables for PostgreSQL connection
+- `--dry-run`: Perform a test run without actual data migration
+
+The migration tool:
+- Preserves all novel metadata and chapter information
+- Maintains data integrity with foreign key relationships
+- Provides progress tracking and detailed logging
+- Includes rollback capabilities in case of errors
+- Verifies migration completeness
 
 ### API Endpoints
 
@@ -178,8 +268,50 @@ Response:
 3. When a file is modified, it re-parses the content and updates the database
 4. When a file is deleted, it removes the corresponding novel from the database
 5. When a file is renamed, it updates the file path in the database
-6. The parsed data is stored in an SQLite database
+6. The parsed data is stored in either SQLite (default) or PostgreSQL database
 7. The FastAPI-based REST API provides access to the stored data with automatic OpenAPI documentation
+
+### Database Support
+
+The application supports two database backends:
+
+- **SQLite** (default): Lightweight, file-based database perfect for single-user deployments
+- **PostgreSQL**: Full-featured relational database ideal for multi-user environments and production deployments
+
+Both databases use the same schema and provide identical functionality. The choice between them depends on your deployment requirements and scalability needs.
+
+## Quick Start Examples
+
+### Using SQLite (Default)
+```bash
+# No configuration needed - just run
+uv run python main.py
+```
+
+### Using PostgreSQL
+```bash
+# Set environment variables
+export DATABASE_TYPE=postgresql
+export POSTGRES_HOST=localhost
+export POSTGRES_DB=novel_parser
+export POSTGRES_USER=your_user
+export POSTGRES_PASSWORD=your_password
+
+# Run the application
+uv run python main.py
+```
+
+### Using Docker with PostgreSQL
+```bash
+# Create .env file
+cat > .env << EOF
+DATABASE_TYPE=postgresql
+POSTGRES_PASSWORD=secure_password
+EOF
+
+# Start PostgreSQL and the application
+docker-compose --profile postgresql up -d
+```
 
 ## Chapter Detection
 

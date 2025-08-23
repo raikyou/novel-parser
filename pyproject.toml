@@ -12,6 +12,7 @@ dependencies = [
     "watchdog>=3.0.0",
     "ebooklib>=0.18.0",
     "beautifulsoup4>=4.12.2",
+    "psycopg2-binary>=2.9.10",
 ]
 
 [project.scripts]

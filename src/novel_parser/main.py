@@ -5,9 +5,10 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from novel_parser.storage import NovelStorage
+from novel_parser.storage import DatabaseFactory
 from novel_parser.parser import NovelMonitor
 from novel_parser.api import create_app
+from novel_parser.config import Config
 
 storage = None
 monitor = None
@@ -15,15 +16,25 @@ monitor_thread = None
 
 
 def setup_directories():
-    for directory in ['data', 'docs']:
+    for directory in ['data', Config.DOCS_DIR]:
         Path(directory).mkdir(exist_ok=True)
+
+
+def create_storage():
+    """Create storage instance based on configuration."""
+    if Config.DATABASE_TYPE == "sqlite":
+        return DatabaseFactory.create_database("sqlite", db_path=Config.SQLITE_DB_PATH)
+    elif Config.DATABASE_TYPE == "postgresql":
+        return DatabaseFactory.create_database("postgresql", connection_url=Config.get_postgres_url())
+    else:
+        raise ValueError(f"Unsupported database type: {Config.DATABASE_TYPE}")
 
 
 def start_monitor():
     global storage, monitor, monitor_thread
 
-    storage = NovelStorage(db_path='data/novels.db')
-    monitor = NovelMonitor(['docs'], storage)
+    storage = create_storage()
+    monitor = NovelMonitor([Config.DOCS_DIR], storage)
     monitor_thread = threading.Thread(target=monitor.start, daemon=True)
     monitor_thread.start()
 
@@ -40,6 +51,9 @@ def signal_handler(_signum, _frame):
 
 
 def main():
+    # Validate configuration
+    Config.validate_config()
+
     signal.signal(signal.SIGINT, signal_handler)
     signal.signal(signal.SIGTERM, signal_handler)
 
@@ -49,7 +63,7 @@ def main():
     app = create_app(storage)
 
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=5001)
+    uvicorn.run(app, host=Config.API_HOST, port=Config.API_PORT)
 
 
 if __name__ == '__main__':
