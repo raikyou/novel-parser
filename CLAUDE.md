@@ -68,9 +68,9 @@ python migrate_db.py --use-env            # Actual migration
 - **Threading**: File monitor runs in separate daemon thread
 - **Signal Handling**: Graceful shutdown on SIGINT/SIGTERM
 
-### Database Schema
+### Database Structure
 
-Both SQLite and PostgreSQL use identical schemas:
+Both SQLite and PostgreSQL use identical table structures:
 - `novels` table: metadata (title, author, file_path, etc.)
 - `chapters` table: chapter content with foreign key to novels
 - Automatic directory creation for `data/` and `docs/`
@@ -88,9 +88,8 @@ Both SQLite and PostgreSQL use identical schemas:
 Key environment variables:
 - `DATABASE_TYPE`: "sqlite" (default) or "postgresql"
 - `SQLITE_DB_PATH`: Path to SQLite file (default: "data/novels.db")
-- `POSTGRES_*`: PostgreSQL connection parameters
-- `API_HOST`/`API_PORT`: Server binding (default: 0.0.0.0:5001)
-- `DOCS_DIR`: Directory to monitor (default: "docs")
+- `DATABASE_URL`: Complete PostgreSQL connection string (e.g., "postgresql://user:pass@host:port/db")
+  - Can include custom search path: "postgresql://user:pass@host:port/db?options=-csearch_path=myschema"
 
 ## API Endpoints
 

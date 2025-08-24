@@ -18,7 +18,7 @@ class DatabaseInterface(ABC):
 
     @abstractmethod
     def init_db(self) -> None:
-        """Initialize database schema."""
+        """Initialize database tables."""
         pass
 
     @abstractmethod

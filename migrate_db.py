@@ -6,14 +6,13 @@ This script migrates data from SQLite to PostgreSQL database.
 It handles all tables, maintains data integrity, and provides progress tracking.
 """
 
-import os
 import sys
 import argparse
 import sqlite3
 import psycopg2
 import psycopg2.extras
 from pathlib import Path
-from typing import Dict, List, Any, Optional
+from typing import Dict, List, Any
 import logging
 from datetime import datetime
 
@@ -38,12 +37,10 @@ from novel_parser.config import Config
 class DatabaseMigrator:
     """Handles migration from SQLite to PostgreSQL."""
 
-    def __init__(self, sqlite_path: str, postgres_url: str, schema: str = "public", dry_run: bool = False, skip_schema_creation: bool = False):
+    def __init__(self, sqlite_path: str, postgres_url: str, dry_run: bool = False):
         self.sqlite_path = sqlite_path
         self.postgres_url = postgres_url
-        self.schema = schema
         self.dry_run = dry_run
-        self.skip_schema_creation = skip_schema_creation
         self.logger = self._setup_logging()
 
     def _setup_logging(self) -> logging.Logger:
@@ -85,12 +82,6 @@ class DatabaseMigrator:
         """Connect to PostgreSQL database."""
         conn = psycopg2.connect(self.postgres_url)
         conn.cursor_factory = psycopg2.extras.RealDictCursor
-
-        # Set search_path to use the specified schema
-        cursor = conn.cursor()
-        cursor.execute(f"SET search_path TO {self.schema}")
-        conn.commit()
-
         return conn
 
     def get_sqlite_data(self) -> Dict[str, List[Dict[str, Any]]]:
@@ -117,38 +108,16 @@ class DatabaseMigrator:
         sqlite_conn.close()
         return data
 
-    def create_postgres_schema(self) -> None:
-        """Create PostgreSQL schema."""
-        self.logger.info(f"Creating PostgreSQL schema '{self.schema}'...")
+    def create_postgres_tables(self) -> None:
+        """Create PostgreSQL tables."""
+        self.logger.info("Creating PostgreSQL tables...")
 
         if self.dry_run:
-            if self.skip_schema_creation:
-                self.logger.info(f"DRY RUN: Would skip schema creation for '{self.schema}' (assuming it already exists)")
-            else:
-                self.logger.info(f"DRY RUN: Would create PostgreSQL schema '{self.schema}'")
+            self.logger.info("DRY RUN: Would create PostgreSQL tables")
             return
 
-        # Create connection without setting search_path first
-        postgres_conn = psycopg2.connect(self.postgres_url)
-        postgres_conn.cursor_factory = psycopg2.extras.RealDictCursor
+        postgres_conn = self.connect_postgres()
         cursor = postgres_conn.cursor()
-
-        # Create schema if it doesn't exist (only if not 'public')
-        if self.schema != "public" and not self.skip_schema_creation:
-            try:
-                cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
-                self.logger.info(f"Schema '{self.schema}' created or already exists")
-            except psycopg2.Error as e:
-                if "permission denied" in str(e).lower():
-                    self.logger.warning(f"Permission denied creating schema '{self.schema}'. Assuming it already exists.")
-                    self.logger.info("If the schema doesn't exist, please create it manually or run with appropriate permissions.")
-                else:
-                    raise e
-        elif self.skip_schema_creation:
-            self.logger.info(f"Skipping schema creation for '{self.schema}' (assuming it already exists)")
-
-        # Set search_path to use the specified schema
-        cursor.execute(f"SET search_path TO {self.schema}")
 
         # Drop existing tables if they exist
         cursor.execute("DROP TABLE IF EXISTS chapters CASCADE")
@@ -182,7 +151,7 @@ class DatabaseMigrator:
 
         postgres_conn.commit()
         postgres_conn.close()
-        self.logger.info(f"PostgreSQL schema '{self.schema}' created successfully")
+        self.logger.info("PostgreSQL tables created successfully")
 
     def migrate_data(self, data: Dict[str, List[Dict[str, Any]]]) -> None:
         """Migrate data to PostgreSQL."""
@@ -288,8 +257,8 @@ class DatabaseMigrator:
             # Extract data from SQLite
             data = self.get_sqlite_data()
 
-            # Create PostgreSQL schema
-            self.create_postgres_schema()
+            # Create PostgreSQL tables
+            self.create_postgres_tables()
 
             # Migrate data
             self.migrate_data(data)
@@ -311,8 +280,6 @@ def main():
     parser = argparse.ArgumentParser(description="Migrate Novel Parser database from SQLite to PostgreSQL")
     parser.add_argument("--sqlite-path", default="data/novels.db", help="Path to SQLite database")
     parser.add_argument("--postgres-url", help="PostgreSQL connection URL")
-    parser.add_argument("--schema", help="PostgreSQL schema name (defaults to environment variable or 'public')")
-    parser.add_argument("--skip-schema-creation", action="store_true", help="Skip schema creation (assume schema already exists)")
     parser.add_argument("--dry-run", action="store_true", help="Perform a dry run without actual migration")
     parser.add_argument("--use-env", action="store_true", help="Use environment variables for PostgreSQL connection")
 
@@ -320,20 +287,18 @@ def main():
 
     # Determine PostgreSQL URL
     if args.use_env:
-        postgres_url = Config.get_postgres_url()
-        schema = args.schema or Config.POSTGRES_SCHEMA
-        # Use environment variable for skip_schema_creation if not specified via command line
-        skip_schema_creation = args.skip_schema_creation or Config.POSTGRES_SKIP_SCHEMA_CREATION
+        postgres_url = Config.get_database_url()
+        if Config.DATABASE_TYPE != "postgresql":
+            print("Error: DATABASE_TYPE must be 'postgresql' when using --use-env")
+            sys.exit(1)
     elif args.postgres_url:
         postgres_url = args.postgres_url
-        schema = args.schema or "public"
-        skip_schema_creation = args.skip_schema_creation
     else:
         print("Error: Either --postgres-url or --use-env must be specified")
         sys.exit(1)
 
     # Create migrator and run migration
-    migrator = DatabaseMigrator(args.sqlite_path, postgres_url, schema, args.dry_run, skip_schema_creation)
+    migrator = DatabaseMigrator(args.sqlite_path, postgres_url, args.dry_run)
     success = migrator.migrate()
 
     sys.exit(0 if success else 1)

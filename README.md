@@ -64,26 +64,8 @@ docker compose up -d
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `DATABASE_TYPE` | `sqlite` | Database type: `sqlite` or `postgresql` |
-| `SQLITE_DB_PATH` | `data/novels.db` | Path to SQLite database file |
-| `POSTGRES_HOST` | `localhost` | PostgreSQL host |
-| `POSTGRES_PORT` | `5432` | PostgreSQL port |
-| `POSTGRES_DB` | `novel_parser` | PostgreSQL database name |
-| `POSTGRES_USER` | `novel_parser` | PostgreSQL username |
-| `POSTGRES_PASSWORD` | `password` | PostgreSQL password |
-| `POSTGRES_SCHEMA` | `public` | PostgreSQL schema name for data isolation |
-| `POSTGRES_SKIP_SCHEMA_CREATION` | `false` | Skip automatic schema creation (assume schema exists) |
-| `API_HOST` | `0.0.0.0` | API server host |
-| `API_PORT` | `5001` | API server port |
-| `DOCS_DIR` | `docs` | Directory to monitor for novel files |
-
-### PostgreSQL Schema Support
-
-**Permission Handling:**
-If your database user doesn't have schema creation permissions, you can:
-1. Create the schema manually in your database
-2. Set `POSTGRES_SKIP_SCHEMA_CREATION=true` in your environment
-3. Use `--skip-schema-creation` flag with the migration tool
+| DATABASE_TYPE | sqlite | `sqlite` or `postgresql` |
+| DATABASE_URL | postgresql://novel_parser:password@localhost:5432/novel_parser | Custom schema via `?options=-csearch_path=novel`. Defaults to `"$user", public` if unspecified. |
 
 ## Database Migration
 

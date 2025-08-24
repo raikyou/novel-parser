@@ -10,17 +10,11 @@ class Config:
     # Database configuration
     DATABASE_TYPE: DatabaseType = os.getenv("DATABASE_TYPE", "sqlite").lower()
 
-    # SQLite configuration
+    # SQLite configuration (kept for backward compatibility)
     SQLITE_DB_PATH: str = os.getenv("SQLITE_DB_PATH", "data/novels.db")
 
-    # PostgreSQL configuration
-    POSTGRES_HOST: str = os.getenv("POSTGRES_HOST", "localhost")
-    POSTGRES_PORT: int = int(os.getenv("POSTGRES_PORT", "5432"))
-    POSTGRES_DB: str = os.getenv("POSTGRES_DB", "novel_parser")
-    POSTGRES_USER: str = os.getenv("POSTGRES_USER", "novel_parser")
-    POSTGRES_PASSWORD: str = os.getenv("POSTGRES_PASSWORD", "password")
-    POSTGRES_SCHEMA: str = os.getenv("POSTGRES_SCHEMA", "public")
-    POSTGRES_SKIP_SCHEMA_CREATION: bool = os.getenv("POSTGRES_SKIP_SCHEMA_CREATION", "false").lower() in ("true", "1", "yes")
+    # PostgreSQL configuration - single DATABASE_URL
+    DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://novel_parser:password@localhost:5432/novel_parser")
 
     # Application configuration
     API_HOST: str = os.getenv("API_HOST", "0.0.0.0")
@@ -28,9 +22,14 @@ class Config:
     DOCS_DIR: str = os.getenv("DOCS_DIR", "docs")
 
     @classmethod
-    def get_postgres_url(cls) -> str:
-        """Get PostgreSQL connection URL."""
-        return f"postgresql://{cls.POSTGRES_USER}:{cls.POSTGRES_PASSWORD}@{cls.POSTGRES_HOST}:{cls.POSTGRES_PORT}/{cls.POSTGRES_DB}"
+    def get_database_url(cls) -> str:
+        """Get database connection URL based on database type."""
+        if cls.DATABASE_TYPE == "sqlite":
+            return cls.SQLITE_DB_PATH
+        elif cls.DATABASE_TYPE == "postgresql":
+            return cls.DATABASE_URL
+        else:
+            raise ValueError(f"Unsupported database type: {cls.DATABASE_TYPE}")
 
     @classmethod
     def validate_config(cls) -> None:
@@ -39,13 +38,9 @@ class Config:
             raise ValueError(f"Invalid DATABASE_TYPE: {cls.DATABASE_TYPE}. Must be 'sqlite' or 'postgresql'")
 
         if cls.DATABASE_TYPE == "postgresql":
-            required_postgres_vars = [
-                "POSTGRES_HOST", "POSTGRES_DB", "POSTGRES_USER", "POSTGRES_PASSWORD"
-            ]
-            missing_vars = []
-            for var in required_postgres_vars:
-                if not getattr(cls, var):
-                    missing_vars.append(var)
+            if not cls.DATABASE_URL:
+                raise ValueError("DATABASE_URL is required when using PostgreSQL")
 
-            if missing_vars:
-                raise ValueError(f"Missing required PostgreSQL configuration: {', '.join(missing_vars)}")
+            # Basic validation that DATABASE_URL looks like a PostgreSQL URL
+            if not cls.DATABASE_URL.startswith(("postgresql://", "postgres://")):
+                raise ValueError("DATABASE_URL must be a valid PostgreSQL connection string starting with 'postgresql://' or 'postgres://'")

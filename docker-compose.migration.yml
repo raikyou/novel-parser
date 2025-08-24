@@ -1,28 +1,19 @@
 version: '3.8'
 
 services:
-  # Database Migration Service
   migration:
     build: .
     volumes:
       - ./data:/app/data
       - ./migrate_db.py:/app/migrate_db.py
     environment:
-      # PostgreSQL Configuration
-      POSTGRES_HOST: ${POSTGRES_HOST:-postgres}
-      POSTGRES_PORT: ${POSTGRES_PORT:-5432}
-      POSTGRES_DB: ${POSTGRES_DB:-novel_parser}
-      POSTGRES_USER: ${POSTGRES_USER:-novel_parser}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
-      POSTGRES_SCHEMA: ${POSTGRES_SCHEMA:-public}
-      POSTGRES_SKIP_SCHEMA_CREATION: ${POSTGRES_SKIP_SCHEMA_CREATION:-false}
+      DATABASE_URL: ${DATABASE_URL:-postgresql://novel_parser:password@postgres:5432/novel_parser}
     command: python migrate_db.py --use-env --sqlite-path data/novels.db
     depends_on:
       - postgres
     networks:
       - novel-parser-network
 
-  # PostgreSQL Database
   postgres:
     image: postgres:15-alpine
     environment:

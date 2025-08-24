@@ -19,22 +19,14 @@ def get_epub_parser():
 class PostgreSQLStorage(DatabaseInterface):
     """PostgreSQL implementation of the database interface."""
 
-    def __init__(self, connection_url: str, schema: str = "public", skip_schema_creation: bool = False):
+    def __init__(self, connection_url: str):
         self.connection_url = connection_url
-        self.schema = schema
-        self.skip_schema_creation = skip_schema_creation
         self.init_db()
 
     def connect(self) -> Any:
         """Create and return a database connection."""
         conn = psycopg2.connect(self.connection_url)
         conn.cursor_factory = psycopg2.extras.RealDictCursor
-
-        # Set search_path to use the specified schema
-        cursor = conn.cursor()
-        cursor.execute(f"SET search_path TO {self.schema}")
-        conn.commit()
-
         return conn
 
     def close_connection(self, conn: Any) -> None:
@@ -43,55 +35,11 @@ class PostgreSQLStorage(DatabaseInterface):
             conn.close()
 
     def init_db(self) -> None:
-        """Initialize database schema."""
-        # Create connection without setting search_path first
-        conn = psycopg2.connect(self.connection_url)
-        conn.cursor_factory = psycopg2.extras.RealDictCursor
+        """Initialize database tables."""
+        conn = self.connect()
         cursor = conn.cursor()
 
         try:
-            # Create schema if it doesn't exist (only if not 'public')
-            if self.schema != "public" and not self.skip_schema_creation:
-                try:
-                    cursor.execute(f"CREATE SCHEMA IF NOT EXISTS {self.schema}")
-                    conn.commit()
-                except psycopg2.Error as e:
-                    if "permission denied" in str(e).lower():
-                        # Schema creation failed due to permissions, assume it exists
-                        conn.rollback()
-                    else:
-                        conn.rollback()
-                        raise e
-            elif self.skip_schema_creation and self.schema != "public":
-                # Skip schema creation, assume it exists
-                pass
-
-            # Set search_path to use the specified schema
-            # First verify the schema exists if we're not using 'public'
-            if self.schema != "public":
-                cursor.execute("SELECT schema_name FROM information_schema.schemata WHERE schema_name = %s", (self.schema,))
-                if not cursor.fetchone():
-                    error_msg = f"""
-Schema '{self.schema}' does not exist in the database.
-
-To fix this issue, you can:
-1. Create the schema manually in your database:
-   CREATE SCHEMA {self.schema};
-
-2. Or set POSTGRES_SKIP_SCHEMA_CREATION=false to auto-create it:
-   POSTGRES_SKIP_SCHEMA_CREATION=false
-
-3. Or use the 'public' schema:
-   POSTGRES_SCHEMA=public
-
-Current configuration:
-- POSTGRES_SCHEMA={self.schema}
-- POSTGRES_SKIP_SCHEMA_CREATION={self.skip_schema_creation}
-"""
-                    raise psycopg2.Error(error_msg.strip())
-
-            cursor.execute(f"SET search_path TO {self.schema}")
-
             cursor.execute('''
             CREATE TABLE IF NOT EXISTS novels (
                 id SERIAL PRIMARY KEY,

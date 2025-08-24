@@ -34,7 +34,7 @@ def create_storage():
     if Config.DATABASE_TYPE == "sqlite":
         return DatabaseFactory.create_database("sqlite", db_path=Config.SQLITE_DB_PATH)
     elif Config.DATABASE_TYPE == "postgresql":
-        return DatabaseFactory.create_database("postgresql", connection_url=Config.get_postgres_url(), schema=Config.POSTGRES_SCHEMA, skip_schema_creation=Config.POSTGRES_SKIP_SCHEMA_CREATION)
+        return DatabaseFactory.create_database("postgresql", connection_url=Config.DATABASE_URL)
     else:
         raise ValueError(f"Unsupported database type: {Config.DATABASE_TYPE}")
 
